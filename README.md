@@ -13,7 +13,9 @@
 * 支持 webpack / rollup 打包的 systemjs 模块，可配置优先加载 chunk（webpack 的 SplitChunks 对 systemjs 兼容不好）
 
 **兼容性：不兼容 IE，Edge 以上没问题**
+
 **副作用：systemjs 会在全局注入 System 全局变量，用于模块管理**
+
 **注意：js 模块需要打包成 system 格式，[webpack配置](https://webpack.js.org/configuration/output/#type-system) [rollup配置](https://rollupjs.org/configuration-options/#output-format)，推荐使用 rollup**
 
 ## 代码示例
