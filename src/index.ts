@@ -5,6 +5,7 @@ export interface SdkConfig {
   entry: string
   chunks?: string[]
   css?: string[]
+  version?: string
 }
 
 type SdkConfigMap = Record<string, SdkConfig>
@@ -13,6 +14,7 @@ type SdkModule = {
   entry: System.Module
   chunks?: System.Module[]
   css?: System.Module[]
+  version?: string
 }
 
 export interface LoadParams {
@@ -31,7 +33,7 @@ function checkSdkConfigs(sdkConfigs: SdkConfigMap) {
 
   sdkNames.forEach((sdkName) => {
     const sdkConfig = sdkConfigs[sdkName]
-    if (!sdkConfig.entry) {
+    if (!sdkConfig || !sdkConfig.entry) {
       throw new Error('sdkConfig must have as "entry".')
     }
     if (sdkConfig.chunks && !Array.isArray(sdkConfig.chunks)) {
@@ -86,7 +88,7 @@ export async function load(params: LoadParams) {
   const results: Record<string, SdkModule> = sdkResults.reduce(
     (result, [entry, chunks, css], index) => ({
       ...result,
-      [sdkNames[index]]: { entry, chunks, css },
+      [sdkNames[index]]: { entry, chunks, css, version: sdkConfigs[index].version },
     }), {})
   return results
 }
