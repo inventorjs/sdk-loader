@@ -53,7 +53,7 @@ async function loadSdkConfigs(sdkUrl: string) {
   return sdkConfigs as SdkConfigMap
 }
 
-export async function load(params: LoadParams) {
+export async function loadSdk(params: LoadParams) {
   const { sdkConfigs: sdkConfigsOrigin, options = {} } = params
   const timeout = options?.timeout ?? 10000
   const chunksDep = options?.chunksDep ?? false

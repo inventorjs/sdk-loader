@@ -20,10 +20,10 @@
 
 ## 代码示例
 ```
-  import { load } from './sdk-loader'
+  import { loadSdk } from './sdk-loader'
   import ReactDOM from 'react-dom'
 
-  load({
+  loadSdk({
     sdkConfigs: {
       testSdk: {
         manifest: {
