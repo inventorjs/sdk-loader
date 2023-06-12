@@ -26,9 +26,12 @@
   load({
     sdkConfigs: {
       testSdk: {
-        entry: 'http://localhost:3000/dist/index.js',
-        chunks: ['http://localhost:3000/dist/react-7138bc01.js'],
-        css: ['http://localhost:3000/dist/style.css'],
+        manifest: {
+          entry: 'http://localhost:3000/dist/index.js',
+          chunks: ['http://localhost:3000/dist/react-7138bc01.js'],
+          css: ['http://localhost:3000/dist/style.css'],
+        },
+        version: 'v1',
       },
     },
     options: {
