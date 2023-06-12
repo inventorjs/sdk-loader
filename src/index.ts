@@ -2,9 +2,11 @@ import './polyfill.js'
 import 'systemjs'
 
 export interface SdkConfig {
-  entry: string
-  chunks?: string[]
-  css?: string[]
+  manifest: {
+    entry: string
+    chunks?: string[]
+    css?: string[]
+  }
   version?: string
 }
 
@@ -32,14 +34,14 @@ function checkSdkConfigs(sdkConfigs: SdkConfigMap) {
   }
 
   sdkNames.forEach((sdkName) => {
-    const sdkConfig = sdkConfigs[sdkName]
-    if (!sdkConfig || !sdkConfig.entry) {
+    const { manifest } = sdkConfigs?.[sdkName] ?? {}
+    if (!manifest || !manifest.entry) {
       throw new Error('sdkConfig must have as "entry".')
     }
-    if (sdkConfig.chunks && !Array.isArray(sdkConfig.chunks)) {
+    if (manifest.chunks && !Array.isArray(manifest.chunks)) {
       throw new Error('sdkConfig "chunks" must string array.')
     }
-    if (sdkConfig.css && !Array.isArray(sdkConfig.css)) {
+    if (manifest.css && !Array.isArray(manifest.css)) {
       throw new Error('sdkConfig "css" must string array.')
     }
   })
@@ -64,17 +66,23 @@ export async function load(params: LoadParams) {
 
   const sdkPromises: Promise<SdkModuleArr>[] = []
   sdkNames.forEach((sdkName) => {
-    const sdkConfig = sdkConfigs[sdkName]
-    const css = sdkConfig.css ?? []
-    const chunks = sdkConfig.chunks ?? []
+    const { manifest } = sdkConfigs[sdkName]
+    const css = manifest.css ?? []
+    const chunks = manifest.chunks ?? []
 
     let entryPromise
-    const chunksPromise = chunks?.length > 0 ? Promise.all(chunks.map((name) => System.import(name))) : Promise.resolve(undefined)
-    const cssPromise = css?.length > 0 ? Promise.all(css.map((name) => System.import(name))) : Promise.resolve(undefined)
+    const chunksPromise =
+      chunks?.length > 0
+        ? Promise.all(chunks.map((name) => System.import(name)))
+        : Promise.resolve(undefined)
+    const cssPromise =
+      css?.length > 0
+        ? Promise.all(css.map((name) => System.import(name)))
+        : Promise.resolve(undefined)
     if (chunksDep) {
-      entryPromise = chunksPromise.then(() => System.import(sdkConfig.entry))
+      entryPromise = chunksPromise.then(() => System.import(manifest.entry))
     } else {
-      entryPromise = System.import(sdkConfig.entry)
+      entryPromise = System.import(manifest.entry)
     }
     sdkPromises.push(Promise.all([entryPromise, chunksPromise, cssPromise]))
   })
@@ -88,7 +96,14 @@ export async function load(params: LoadParams) {
   const results: Record<string, SdkModule> = sdkResults.reduce(
     (result, [entry, chunks, css], index) => ({
       ...result,
-      [sdkNames[index]]: { entry, chunks, css, version: sdkConfigs[index].version },
-    }), {})
+      [sdkNames[index]]: {
+        entry,
+        chunks,
+        css,
+        version: sdkConfigs[index].version,
+      },
+    }),
+    {},
+  )
   return results
 }
