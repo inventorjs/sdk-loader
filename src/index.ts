@@ -10,8 +10,12 @@ export interface SdkConfig {
   version?: string
 }
 
+type CssAttachMode = 'legacy' | 'modern' | false
+type Doc = (Document & { adoptedStyleSheets: CSSStyleSheet[] })
+type DocumentRoot = DocumentOrShadowRoot | Doc
+
 type SdkConfigMap = Record<string, SdkConfig>
-type SdkModuleArr = [System.Module, System.Module[]?, System.Module[]?]
+type SdkModuleArr = [System.Module, System.Module[]?, unknown[]?]
 type SdkModule = {
   entry: System.Module
   chunks?: System.Module[]
@@ -24,6 +28,8 @@ export interface LoadParams {
   options?: {
     timeout?: number
     chunksDep?: boolean
+    cssAttachMode?: CssAttachMode
+    documentRoot?: DocumentRoot
   }
 }
 
@@ -53,10 +59,50 @@ async function loadSdkConfigs(sdkUrl: string) {
   return sdkConfigs as SdkConfigMap
 }
 
+async function loadCss(
+  css: string[],
+  cssAttachMode: CssAttachMode,
+  documentRoot: DocumentRoot,
+) {
+  if (!css.length) return Promise.resolve(undefined)
+
+  const cssPromise = Promise.all(
+    css.map((cssLink) => {
+      if (cssAttachMode === 'legacy') {
+        return new Promise((resolve, reject) => {
+          const doc = documentRoot as Doc
+          const shadowDoc = documentRoot as ShadowRoot
+          const currentLink = doc.querySelector(`link[href="${cssLink}"]`)
+          if (currentLink) {
+            return resolve(currentLink)
+          }
+
+          const link = document.createElement('link')
+          link.rel = 'stylesheet'
+          link.href = cssLink
+          if (doc.head) {
+            doc.head.appendChild(link)
+          } else {
+            shadowDoc.appendChild(link)
+          }
+          link.onload = () => resolve(link)
+          link.onerror = (error) => reject(error)
+        })
+      } else {
+        return System.import(cssLink)
+      }
+    }),
+  )
+  return cssPromise
+}
+
 export async function loadSdk(params: LoadParams) {
   const { sdkConfigs: sdkConfigsOrigin, options = {} } = params
   const timeout = options?.timeout ?? 10000
   const chunksDep = options?.chunksDep ?? false
+  const cssAttachMode = options?.cssAttachMode ?? false
+  const documentRoot = options.documentRoot ?? document
+
   let sdkConfigs = sdkConfigsOrigin as Record<string, SdkConfig>
   if (typeof sdkConfigsOrigin === 'string') {
     sdkConfigs = await loadSdkConfigs(sdkConfigsOrigin)
@@ -75,10 +121,7 @@ export async function loadSdk(params: LoadParams) {
       chunks?.length > 0
         ? Promise.all(chunks.map((name) => System.import(name)))
         : Promise.resolve(undefined)
-    const cssPromise =
-      css?.length > 0
-        ? Promise.all(css.map((name) => System.import(name)))
-        : Promise.resolve(undefined)
+    const cssPromise = loadCss(css, cssAttachMode, documentRoot)
     if (chunksDep) {
       entryPromise = chunksPromise.then(() => System.import(manifest.entry))
     } else {
