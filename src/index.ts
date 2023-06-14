@@ -136,7 +136,7 @@ export async function loadSdk(params: LoadParams) {
     Promise.all(sdkPromises),
     new Promise((_, reject) => {
       setTimeout(() => {
-        reject()
+        reject(new Error(`timeout ${timeout}ms`))
       }, timeout)
     })
   ]) as SdkModuleArr[]
