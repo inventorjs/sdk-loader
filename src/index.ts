@@ -23,6 +23,8 @@ type SdkModule = {
   version?: string
 }
 
+export type Module = System.Module
+
 export interface LoadParams {
   sdkConfigs: SdkConfigMap | string
   options?: {
@@ -143,7 +145,7 @@ export async function loadSdk(params: LoadParams) {
         entry,
         chunks,
         css,
-        version: sdkConfigs[index].version,
+        version: sdkConfigs[sdkNames[index]].version,
       },
     }),
     {},
