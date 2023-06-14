@@ -132,11 +132,14 @@ export async function loadSdk(params: LoadParams) {
     sdkPromises.push(Promise.all([entryPromise, chunksPromise, cssPromise]))
   })
 
-  const timer = setTimeout(() => {
-    throw new Error(`sdk load timeout ${timeout}ms`)
-  }, timeout)
-  const sdkResults = await Promise.all(sdkPromises)
-  clearTimeout(timer)
+  const sdkResults = await Promise.race([
+    Promise.all(sdkPromises),
+    new Promise((_, reject) => {
+      setTimeout(() => {
+        reject()
+      }, timeout)
+    })
+  ]) as SdkModuleArr[]
 
   const results: Record<string, SdkModule> = sdkResults.reduce(
     (result, [entry, chunks, css], index) => ({
