@@ -36,6 +36,9 @@
     },
     options: {
       timeout: 15000,
+      chunksPreload: true, // 默认为 false，是否预加载 chunks，webpack 构建的 chunks 请传 true
+      cssEffect: true, // 默认为 false，加载完 css 是否在页面生效，优先使用 adoptedStyleSheets，若不支持，降级为 link
+      documentRoot: document, // 默认为 document, css 生效的文档对象，可传 shadowDom Root
     }
   }).then(({ testSdk: { entry, chunks, css } }) => {
     console.log(entry, chunks, css)

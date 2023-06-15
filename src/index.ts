@@ -10,12 +10,15 @@ export interface SdkConfig {
   version?: string
 }
 
-type CssAttachMode = 'legacy' | 'modern' | false
-type Doc = (Document & { adoptedStyleSheets: CSSStyleSheet[] })
+type Doc = Document & { adoptedStyleSheets: CSSStyleSheet[] }
 type DocumentRoot = DocumentOrShadowRoot | Doc
 
 type SdkConfigMap = Record<string, SdkConfig>
-type SdkModuleArr = [System.Module, System.Module[]?, unknown[]?]
+type SdkModuleArr = [
+  System.Module,
+  System.Module[]?,
+  (System.Module | unknown)[]?,
+]
 type SdkModule = {
   entry: System.Module
   chunks?: System.Module[]
@@ -29,8 +32,8 @@ export interface LoadParams {
   sdkConfigs: SdkConfigMap | string
   options?: {
     timeout?: number
-    chunksDep?: boolean
-    cssAttachMode?: CssAttachMode
+    chunksPreload?: boolean
+    cssEffect?: boolean
     documentRoot?: DocumentRoot
   }
 }
@@ -63,17 +66,37 @@ async function loadSdkConfigs(sdkUrl: string) {
 
 async function loadCss(
   css: string[],
-  cssAttachMode: CssAttachMode,
+  cssEffect: boolean,
   documentRoot: DocumentRoot,
 ) {
   if (!css.length) return Promise.resolve(undefined)
+  const doc = documentRoot as Doc
+  const shadowDoc = documentRoot as ShadowRoot
 
   const cssPromise = Promise.all(
     css.map((cssLink) => {
-      if (cssAttachMode === 'legacy') {
+      if (!cssEffect) {
+        return System.import(cssLink)
+      }
+      // 优先使用 adoptedStyleSheets
+      if (typeof doc.adoptedStyleSheets !== 'undefined') {
+        return System.import(cssLink).then(
+          ({ default: cssStylesheet }: { default?: CSSStyleSheet }) => {
+            if (
+              cssStylesheet &&
+              !doc.adoptedStyleSheets?.find(
+                (stylesheet) => stylesheet === cssStylesheet,
+              )
+            ) {
+              doc.adoptedStyleSheets = [
+                ...doc.adoptedStyleSheets,
+                cssStylesheet,
+              ]
+            }
+          },
+        )
+      } else {
         return new Promise((resolve, reject) => {
-          const doc = documentRoot as Doc
-          const shadowDoc = documentRoot as ShadowRoot
           const currentLink = doc.querySelector(`link[href="${cssLink}"]`)
           if (currentLink) {
             return resolve(currentLink)
@@ -90,8 +113,6 @@ async function loadCss(
           link.onload = () => resolve(link)
           link.onerror = (error) => reject(error)
         })
-      } else {
-        return System.import(cssLink)
       }
     }),
   )
@@ -101,8 +122,8 @@ async function loadCss(
 export async function loadSdk(params: LoadParams) {
   const { sdkConfigs: sdkConfigsOrigin, options = {} } = params
   const timeout = options?.timeout ?? 10000
-  const chunksDep = options?.chunksDep ?? false
-  const cssAttachMode = options?.cssAttachMode ?? false
+  const chunksPreload = options?.chunksPreload ?? false
+  const cssEffect = options?.cssEffect ?? false
   const documentRoot = options.documentRoot ?? document
 
   let sdkConfigs = sdkConfigsOrigin as Record<string, SdkConfig>
@@ -123,8 +144,8 @@ export async function loadSdk(params: LoadParams) {
       chunks?.length > 0
         ? Promise.all(chunks.map((name) => System.import(name)))
         : Promise.resolve(undefined)
-    const cssPromise = loadCss(css, cssAttachMode, documentRoot)
-    if (chunksDep) {
+    const cssPromise = loadCss(css, cssEffect, documentRoot)
+    if (chunksPreload) {
       entryPromise = chunksPromise.then(() => System.import(manifest.entry))
     } else {
       entryPromise = System.import(manifest.entry)
@@ -132,22 +153,20 @@ export async function loadSdk(params: LoadParams) {
     sdkPromises.push(Promise.all([entryPromise, chunksPromise, cssPromise]))
   })
 
-  const sdkResults = await Promise.race([
+  const sdkResults = (await Promise.race([
     Promise.all(sdkPromises),
     new Promise((_, reject) => {
       setTimeout(() => {
         reject(new Error(`timeout ${timeout}ms`))
       }, timeout)
-    })
-  ]) as SdkModuleArr[]
+    }),
+  ])) as SdkModuleArr[]
 
   const results: Record<string, SdkModule> = sdkResults.reduce(
-    (result, [entry, chunks, css], index) => ({
+    (result, sdkModule, index) => ({
       ...result,
       [sdkNames[index]]: {
-        entry,
-        chunks,
-        css,
+        ...sdkModule,
         version: sdkConfigs[sdkNames[index]].version,
       },
     }),
