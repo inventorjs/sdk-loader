@@ -27,13 +27,14 @@ type SdkModule = {
 }
 
 export type Module = System.Module
+export type CssEffect = 'link' | 'auto' | false
 
 export interface LoadParams {
   sdkConfigs: SdkConfigMap | string
   options?: {
     timeout?: number
     chunksPreload?: boolean
-    cssEffect?: boolean
+    cssEffect?: CssEffect
     documentRoot?: DocumentRoot
   }
 }
@@ -66,7 +67,7 @@ async function loadSdkConfigs(sdkUrl: string) {
 
 async function loadCss(
   css: string[],
-  cssEffect: boolean,
+  cssEffect: CssEffect,
   documentRoot: DocumentRoot,
 ) {
   if (!css.length) return Promise.resolve(undefined)
@@ -78,24 +79,8 @@ async function loadCss(
       if (!cssEffect) {
         return System.import(cssLink)
       }
-      // 优先使用 adoptedStyleSheets
-      if (typeof doc.adoptedStyleSheets !== 'undefined') {
-        return System.import(cssLink).then(
-          ({ default: cssStylesheet }: { default?: CSSStyleSheet }) => {
-            if (
-              cssStylesheet &&
-              !doc.adoptedStyleSheets?.find(
-                (stylesheet) => stylesheet === cssStylesheet,
-              )
-            ) {
-              doc.adoptedStyleSheets = [
-                ...doc.adoptedStyleSheets,
-                cssStylesheet,
-              ]
-            }
-          },
-        )
-      } else {
+
+      if (cssEffect === 'link' || typeof doc.adoptedStyleSheets === 'undefined') {
         return new Promise((resolve, reject) => {
           const currentLink = doc.querySelector(`link[href="${cssLink}"]`)
           if (currentLink) {
@@ -113,6 +98,22 @@ async function loadCss(
           link.onload = () => resolve(link)
           link.onerror = (error) => reject(error)
         })
+      } else {
+        return System.import(cssLink).then(
+          ({ default: cssStylesheet }: { default?: CSSStyleSheet }) => {
+            if (
+              cssStylesheet &&
+              !doc.adoptedStyleSheets?.find(
+                (stylesheet) => stylesheet === cssStylesheet,
+              )
+            ) {
+              doc.adoptedStyleSheets = [
+                ...doc.adoptedStyleSheets,
+                cssStylesheet,
+              ]
+            }
+          },
+        )
       }
     }),
   )
