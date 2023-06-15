@@ -163,10 +163,12 @@ export async function loadSdk(params: LoadParams) {
   ])) as SdkModuleArr[]
 
   const results: Record<string, SdkModule> = sdkResults.reduce(
-    (result, sdkModule, index) => ({
+    (result, [entry, chunks, css], index) => ({
       ...result,
       [sdkNames[index]]: {
-        ...sdkModule,
+        entry,
+        chunks,
+        css,
         version: sdkConfigs[sdkNames[index]].version,
       },
     }),
