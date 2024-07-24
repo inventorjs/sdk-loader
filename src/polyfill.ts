@@ -1,5 +1,5 @@
 import { fetch as fetchPolyfill } from 'whatwg-fetch'
 
-if (typeof window.fetch === 'undefined') {
+if (typeof window !== 'undefined' && typeof window.fetch === 'undefined') {
   window.fetch = fetchPolyfill
 }

@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "target": "es6",
-    "module": "esnext",
+    "module": "commonjs",
     "lib": ["esnext", "dom"],
     "rootDir": "src",
     "baseUrl": ".",
@@ -13,7 +13,7 @@
     "noImplicitAny": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
-    "moduleResolution": "nodenext"
+    "moduleResolution": "node"
   },
   "include": ["src/**/*", "global.d.ts"]
 }
